@@ -171,6 +171,51 @@ export class Perplexity implements INodeType {
 					},
 				],
 			},
+			{
+				displayName: 'Response Format',
+				name: 'responseFormat',
+				type: 'collection',
+				placeholder: 'Add Response Format',
+				default: {},
+				options: [
+					{
+						displayName: 'Type',
+						name: 'type',
+						type: 'options',
+						options: [
+							{ name: 'JSON Schema', value: 'json_schema' },
+							{ name: 'Regex', value: 'regex' },
+						],
+						default: 'json_schema',
+						description: 'The format type for the response.',
+					},
+					{
+						displayName: 'JSON Schema',
+						name: 'json_schema',
+						type: 'json',
+						default: '',
+						description: 'JSON Schema for the response. Required if type is JSON Schema.',
+						displayOptions: {
+							show: {
+								type: ['json_schema'],
+							},
+						},
+					},
+					{
+						displayName: 'Regex',
+						name: 'regex',
+						type: 'string',
+						default: '',
+						description: 'Regex pattern for the response. Required if type is Regex.',
+						displayOptions: {
+							show: {
+								type: ['regex'],
+							},
+						},
+					},
+				],
+				description: 'Specify how the model should format its response.',
+			},
 		],
 	};
 
@@ -187,6 +232,22 @@ export class Perplexity implements INodeType {
 					const messagesUi = this.getNodeParameter('messages.messagesUi', i, []) as IDataObject[];
 					const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
 
+					const responseFormat = this.getNodeParameter('responseFormat', i, {}) as {
+						type?: string;
+						json_schema?: object;
+						regex?: string;
+					};
+
+					if (responseFormat.type) {
+						payload.response_format = { type: responseFormat.type };
+						if (responseFormat.type === 'json_schema' && responseFormat.json_schema) {
+							payload.response_format.json_schema = responseFormat.json_schema;
+						}
+						if (responseFormat.type === 'regex' && responseFormat.regex) {
+							payload.response_format.regex = responseFormat.regex;
+						}
+					}
+
 					const messages = messagesUi.map((messageData) => ({
 						role: messageData.role as string,
 						content: messageData.content as string,
@@ -196,6 +257,7 @@ export class Perplexity implements INodeType {
 						model,
 						messages,
 						...additionalFields,
+						payload,
 					};
 
 					const response = await this.helpers.requestWithAuthentication.call(this, 'perplexityApi', {
